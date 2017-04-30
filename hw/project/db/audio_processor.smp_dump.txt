@@ -1,0 +1,77 @@
+
+State Machine - |top|next_state
+Name next_state.playing next_state.recording next_state.idle 
+next_state.idle 0 0 0 
+next_state.recording 0 1 1 
+next_state.playing 1 0 1 
+
+State Machine - |top|current_state
+Name current_state.playing current_state.recording current_state.idle 
+current_state.idle 0 0 0 
+current_state.recording 0 1 1 
+current_state.playing 1 0 1 
+
+State Machine - |top|audio_and_video_config:cfg|Altera_UP_I2C:I2C_Controller|s_i2c_transceiver
+Name s_i2c_transceiver.I2C_STATE_6_COMPLETE s_i2c_transceiver.I2C_STATE_5_STOP_BIT s_i2c_transceiver.I2C_STATE_4_TRANSFER_ACK s_i2c_transceiver.I2C_STATE_3_TRANSFER_BYTE s_i2c_transceiver.I2C_STATE_2_START_BIT s_i2c_transceiver.I2C_STATE_1_PRE_START s_i2c_transceiver.I2C_STATE_0_IDLE 
+s_i2c_transceiver.I2C_STATE_0_IDLE 0 0 0 0 0 0 0 
+s_i2c_transceiver.I2C_STATE_1_PRE_START 0 0 0 0 0 1 1 
+s_i2c_transceiver.I2C_STATE_2_START_BIT 0 0 0 0 1 0 1 
+s_i2c_transceiver.I2C_STATE_3_TRANSFER_BYTE 0 0 0 1 0 0 1 
+s_i2c_transceiver.I2C_STATE_4_TRANSFER_ACK 0 0 1 0 0 0 1 
+s_i2c_transceiver.I2C_STATE_5_STOP_BIT 0 1 0 0 0 0 1 
+s_i2c_transceiver.I2C_STATE_6_COMPLETE 1 0 0 0 0 0 1 
+
+State Machine - |top|audio_and_video_config:cfg|Altera_UP_I2C_AV_Auto_Initialize:Auto_Initialize|s_i2c_auto_init
+Name s_i2c_auto_init.AUTO_STATE_7_DONE s_i2c_auto_init.AUTO_STATE_6_INCREASE_COUNTER s_i2c_auto_init.AUTO_STATE_5_SEND_STOP_BIT s_i2c_auto_init.AUTO_STATE_4_WAIT s_i2c_auto_init.AUTO_STATE_3_TRANSFER_BYTE_2 s_i2c_auto_init.AUTO_STATE_2_TRANSFER_BYTE_1 s_i2c_auto_init.AUTO_STATE_1_SEND_START_BIT s_i2c_auto_init.AUTO_STATE_0_CHECK_STATUS 
+s_i2c_auto_init.AUTO_STATE_0_CHECK_STATUS 0 0 0 0 0 0 0 0 
+s_i2c_auto_init.AUTO_STATE_1_SEND_START_BIT 0 0 0 0 0 0 1 1 
+s_i2c_auto_init.AUTO_STATE_2_TRANSFER_BYTE_1 0 0 0 0 0 1 0 1 
+s_i2c_auto_init.AUTO_STATE_3_TRANSFER_BYTE_2 0 0 0 0 1 0 0 1 
+s_i2c_auto_init.AUTO_STATE_4_WAIT 0 0 0 1 0 0 0 1 
+s_i2c_auto_init.AUTO_STATE_5_SEND_STOP_BIT 0 0 1 0 0 0 0 1 
+s_i2c_auto_init.AUTO_STATE_6_INCREASE_COUNTER 0 1 0 0 0 0 0 1 
+s_i2c_auto_init.AUTO_STATE_7_DONE 1 0 0 0 0 0 0 1 
+
+State Machine - |top|nios_system:u0|nios_system_sdram:sdram|m_next
+Name m_next.010000000 m_next.000010000 m_next.000001000 m_next.000000001 
+m_next.000000001 0 0 0 0 
+m_next.000001000 0 0 1 1 
+m_next.000010000 0 1 0 1 
+m_next.010000000 1 0 0 1 
+
+State Machine - |top|nios_system:u0|nios_system_sdram:sdram|m_state
+Name m_state.100000000 m_state.010000000 m_state.001000000 m_state.000100000 m_state.000010000 m_state.000001000 m_state.000000100 m_state.000000010 m_state.000000001 
+m_state.000000001 0 0 0 0 0 0 0 0 0 
+m_state.000000010 0 0 0 0 0 0 0 1 1 
+m_state.000000100 0 0 0 0 0 0 1 0 1 
+m_state.000001000 0 0 0 0 0 1 0 0 1 
+m_state.000010000 0 0 0 0 1 0 0 0 1 
+m_state.000100000 0 0 0 1 0 0 0 0 1 
+m_state.001000000 0 0 1 0 0 0 0 0 1 
+m_state.010000000 0 1 0 0 0 0 0 0 1 
+m_state.100000000 1 0 0 0 0 0 0 0 1 
+
+State Machine - |top|nios_system:u0|nios_system_sdram:sdram|i_next
+Name i_next.111 i_next.101 i_next.010 i_next.000 
+i_next.000 0 0 0 0 
+i_next.010 0 0 1 1 
+i_next.101 0 1 0 1 
+i_next.111 1 0 0 1 
+
+State Machine - |top|nios_system:u0|nios_system_sdram:sdram|i_state
+Name i_state.111 i_state.101 i_state.011 i_state.010 i_state.001 i_state.000 
+i_state.000 0 0 0 0 0 0 
+i_state.001 0 0 0 0 1 1 
+i_state.010 0 0 0 1 0 1 
+i_state.011 0 0 1 0 0 1 
+i_state.101 0 1 0 0 0 1 
+i_state.111 1 0 0 0 0 1 
+
+State Machine - |top|nios_system:u0|nios_system_nios2_gen2_0:nios2_gen2_0|nios_system_nios2_gen2_0_cpu:cpu|nios_system_nios2_gen2_0_cpu_nios2_oci:the_nios_system_nios2_gen2_0_cpu_nios2_oci|nios_system_nios2_gen2_0_cpu_debug_slave_wrapper:the_nios_system_nios2_gen2_0_cpu_debug_slave_wrapper|nios_system_nios2_gen2_0_cpu_debug_slave_tck:the_nios_system_nios2_gen2_0_cpu_debug_slave_tck|DRsize
+Name DRsize.101 DRsize.100 DRsize.011 DRsize.010 DRsize.001 DRsize.000 
+DRsize.000 0 0 0 0 0 0 
+DRsize.001 0 0 0 0 1 1 
+DRsize.010 0 0 0 1 0 1 
+DRsize.011 0 0 1 0 0 1 
+DRsize.100 0 1 0 0 0 1 
+DRsize.101 1 0 0 0 0 1 

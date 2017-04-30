@@ -1,0 +1,203 @@
+-- Dr. Kaputa
+-- Lab 10: Audio Processor 3000 
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity audio_processor_3000 is 
+  port(
+    clk                 : in std_logic;
+    reset               : in std_logic;
+    execute_btn         : in std_logic;
+    sync                : in std_logic;
+    audio_in            : in std_logic_vector(15 downto 0);
+    led                 : out std_logic_vector(9 downto 0);
+    audio_out           : out std_logic_vector(15 downto 0)
+  );
+end audio_processor_3000;
+
+
+
+architecture beh of audio_processor_3000 is
+  TYPE state_type is (passthrough, echo, distort, lowpass);
+  signal current_state, next_state : state_type := passthrough;
+  
+  component RAM IS
+	PORT
+	(
+		address_a	: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
+		address_b	: IN STD_LOGIC_VECTOR (10 DOWNTO 0);
+		clock		  : IN STD_LOGIC;
+		data_a		: IN STD_LOGIC_VECTOR (15 DOWNTO 0);
+		data_b		: IN STD_LOGIC_VECTOR (15 DOWNTO 0);
+		wren_a		: IN STD_LOGIC;
+		wren_b		: IN STD_LOGIC;
+		q_a		    : OUT STD_LOGIC_VECTOR (15 DOWNTO 0);
+		q_b		    : OUT STD_LOGIC_VECTOR (15 DOWNTO 0)
+	);
+  END component;
+  
+  component rising_edge_synchronizer
+    port(
+      clk               : in std_logic;
+      reset             : in std_logic;
+      input             : in std_logic;
+      edge              : out std_logic
+    );          
+  end component;
+  
+  signal synced_execute   : std_logic;
+  signal RAM_we 			    : std_logic;
+  signal RAM_addr			    : std_logic_vector(10 downto 0);
+  signal RAM_echo_addr		: std_logic_vector(10 downto 0);
+  signal RAM_echo_out		  : std_logic_vector(15 downto 0);
+  signal audio_in_z	      : std_logic_vector(15 downto 0);
+  signal audio_in_zz	    : std_logic_vector(15 downto 0);
+  signal audio_in_zzz	    : std_logic_vector(15 downto 0);
+  signal audio_in_filter	: std_logic_vector(15 downto 0);
+  signal audio_in_distort	: std_logic_vector(15 downto 0);
+  signal led_state        : std_logic_vector(9 downto 0);
+  constant ECHO_DELAY     : std_logic_vector := std_logic_vector(to_unsigned(1000, 10));
+  constant DISTORT_CLIP   : std_logic_vector := std_logic_vector(to_signed(8192, 16));
+  constant NEGATIVE_DISTORT_CLIP   : std_logic_vector := std_logic_vector(to_signed(-8192, 16));
+begin
+
+sync_inst : rising_edge_synchronizer
+  port map (
+    clk     => clk,
+    reset   => reset,
+    input   => execute_btn,
+    edge    => synced_execute
+  );
+
+  RAM_inst : RAM PORT MAP (
+		address_a	 => RAM_addr,
+		address_b	 => RAM_echo_addr,
+		clock	 => clk,
+		data_a	 => audio_in,
+		data_b	 => audio_in,
+		wren_a	 => RAM_we,
+		wren_b	 => '0',
+		q_a	 => open,
+		q_b	 => RAM_echo_out
+	);
+  
+  process(clk,reset)
+  begin 
+    if (reset = '1') then 
+      RAM_addr <= (others => '0');
+	  RAM_echo_addr <= (others => '0');
+      RAM_we <= '0';
+    elsif rising_edge(clk) then
+      if (sync = '1') then
+        RAM_addr <= std_logic_vector(unsigned(RAM_addr) + 1);
+        RAM_echo_addr <= std_logic_vector(unsigned(RAM_addr) - unsigned(ECHO_DELAY));
+        RAM_we <= '1';
+      else
+        RAM_addr <= RAM_addr;
+        RAM_echo_addr <= RAM_echo_addr;
+        RAM_we <= '0';
+      end if;
+    end if;
+  end process;
+
+  process(clk,reset)
+  begin 
+    if (reset = '1') then 
+      audio_in_distort <= (others => '0');
+    elsif rising_edge(clk) then
+      if (audio_in(15) = '1' AND (signed(audio_in) < signed(NEGATIVE_DISTORT_CLIP))) then
+        audio_in_distort <= NEGATIVE_DISTORT_CLIP;
+      elsif (audio_in(15) = '0' AND (signed(audio_in) > signed(DISTORT_CLIP))) then
+        audio_in_distort <= DISTORT_CLIP;
+      else
+        audio_in_distort <= audio_in;
+      end if;
+    end if;
+  end process;
+  
+  audio_in_filter <= std_logic_vector(signed(audio_in(15) & audio_in(15) & audio_in) + signed(audio_in_z) + signed(audio_in_zz) + signed(audio_in_zzz))(17 downto 2);
+  process(clk,reset)
+  begin 
+    if (reset = '1') then 
+      audio_in_z <= (others => '0');
+      audio_in_zz <= (others => '0');
+      audio_in_zzz <= (others => '0');
+    elsif rising_edge(clk) then
+      if (sync = '1') then
+        audio_in_z <= audio_in;
+        audio_in_zz <= audio_in_z;
+        audio_in_zzz <= audio_in_zz;
+      end if;
+    end if;
+  end process;
+  
+	process(clk, reset, current_state, next_state) is
+	begin
+		if reset = '1' then
+			current_state <= passthrough;
+		elsif rising_edge(clk) then
+			current_state <= next_state;
+		else
+			current_state <= current_state;
+		end if;
+	end process;
+
+  process(clk, reset, synced_execute, current_state) is
+  begin
+    if reset = '1' then
+      next_state <= passthrough;
+    elsif rising_edge(clk) then
+      if synced_execute = '1' then
+        case(current_state) is
+          when passthrough => next_state <= echo;
+          when echo => next_state <= distort;
+          when distort => next_state <= lowpass;
+          when others => next_state <= passthrough;
+        end case;
+      end if;
+    end if;
+	end process;
+  
+  -- feedthrough
+  process(clk,reset)
+  begin 
+    if (reset = '1') then 
+      audio_out <= (others => '0');
+    elsif rising_edge(clk) then
+      if (sync = '1') then
+        case(current_state) is
+          when echo => audio_out <= std_logic_vector(signed(audio_in) + signed(RAM_echo_out));
+          when distort => audio_out <= audio_in_distort;
+          when lowpass => audio_out <= audio_in_filter;
+          when others => audio_out <= audio_in;
+        end case;
+      end if;
+    end if;
+  end process;
+
+--  process(clk)
+--  begin
+--    if rising_edge(clk) then
+--      if (sync = '1') then
+--        led_state <= audio_in(15 downto 6);
+--      else
+--        led_state <= led_state;
+--      end if;
+--    end if;
+--  end process;
+--  led <= led_state;
+  process(clk)
+  begin 
+    if rising_edge(clk) then
+      case(current_state) is
+        when passthrough => led <= "1111111111";
+        when echo => led <= "1000000000";
+        when distort => led <= "0100000000";
+        when lowpass => led <= "0010000000";
+        when others => led <= "0001000000";
+      end case;
+    end if;
+  end process;
+end beh;
