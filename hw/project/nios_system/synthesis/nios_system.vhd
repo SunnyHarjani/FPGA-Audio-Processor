@@ -8,21 +8,50 @@ use IEEE.numeric_std.all;
 
 entity nios_system is
 	port (
-		clk_clk       : in    std_logic                     := '0';             --   clk.clk
-		reset_reset_n : in    std_logic                     := '0';             -- reset.reset_n
-		sdram_addr    : out   std_logic_vector(11 downto 0);                    -- sdram.addr
-		sdram_ba      : out   std_logic_vector(1 downto 0);                     --      .ba
-		sdram_cas_n   : out   std_logic;                                        --      .cas_n
-		sdram_cke     : out   std_logic;                                        --      .cke
-		sdram_cs_n    : out   std_logic;                                        --      .cs_n
-		sdram_dq      : inout std_logic_vector(15 downto 0) := (others => '0'); --      .dq
-		sdram_dqm     : out   std_logic_vector(1 downto 0);                     --      .dqm
-		sdram_ras_n   : out   std_logic;                                        --      .ras_n
-		sdram_we_n    : out   std_logic                                         --      .we_n
+		clk_clk              : in    std_logic                     := '0';             --           clk.clk
+		data_in_export       : in    std_logic_vector(15 downto 0) := (others => '0'); --       data_in.export
+		data_out_export      : out   std_logic_vector(15 downto 0);                    --      data_out.export
+		led_out_export       : out   std_logic_vector(9 downto 0);                     --       led_out.export
+		play_btn_in_export   : in    std_logic                     := '0';             --   play_btn_in.export
+		record_btn_in_export : in    std_logic                     := '0';             -- record_btn_in.export
+		reset_reset_n        : in    std_logic                     := '0';             --         reset.reset_n
+		sdram_addr           : out   std_logic_vector(11 downto 0);                    --         sdram.addr
+		sdram_ba             : out   std_logic_vector(1 downto 0);                     --              .ba
+		sdram_cas_n          : out   std_logic;                                        --              .cas_n
+		sdram_cke            : out   std_logic;                                        --              .cke
+		sdram_cs_n           : out   std_logic;                                        --              .cs_n
+		sdram_dq             : inout std_logic_vector(15 downto 0) := (others => '0'); --              .dq
+		sdram_dqm            : out   std_logic_vector(1 downto 0);                     --              .dqm
+		sdram_ras_n          : out   std_logic;                                        --              .ras_n
+		sdram_we_n           : out   std_logic;                                        --              .we_n
+		sync_in_export       : in    std_logic                     := '0'              --       sync_in.export
 	);
 end entity nios_system;
 
 architecture rtl of nios_system is
+	component nios_system_data_in is
+		port (
+			clk      : in  std_logic                     := 'X';             -- clk
+			reset_n  : in  std_logic                     := 'X';             -- reset_n
+			address  : in  std_logic_vector(1 downto 0)  := (others => 'X'); -- address
+			readdata : out std_logic_vector(31 downto 0);                    -- readdata
+			in_port  : in  std_logic_vector(15 downto 0) := (others => 'X')  -- export
+		);
+	end component nios_system_data_in;
+
+	component nios_system_data_out is
+		port (
+			clk        : in  std_logic                     := 'X';             -- clk
+			reset_n    : in  std_logic                     := 'X';             -- reset_n
+			address    : in  std_logic_vector(1 downto 0)  := (others => 'X'); -- address
+			write_n    : in  std_logic                     := 'X';             -- write_n
+			writedata  : in  std_logic_vector(31 downto 0) := (others => 'X'); -- writedata
+			chipselect : in  std_logic                     := 'X';             -- chipselect
+			readdata   : out std_logic_vector(31 downto 0);                    -- readdata
+			out_port   : out std_logic_vector(15 downto 0)                     -- export
+		);
+	end component nios_system_data_out;
+
 	component nios_system_jtag_uart_0 is
 		port (
 			clk            : in  std_logic                     := 'X';             -- clk
@@ -38,12 +67,25 @@ architecture rtl of nios_system is
 		);
 	end component nios_system_jtag_uart_0;
 
+	component nios_system_led_out is
+		port (
+			clk        : in  std_logic                     := 'X';             -- clk
+			reset_n    : in  std_logic                     := 'X';             -- reset_n
+			address    : in  std_logic_vector(1 downto 0)  := (others => 'X'); -- address
+			write_n    : in  std_logic                     := 'X';             -- write_n
+			writedata  : in  std_logic_vector(31 downto 0) := (others => 'X'); -- writedata
+			chipselect : in  std_logic                     := 'X';             -- chipselect
+			readdata   : out std_logic_vector(31 downto 0);                    -- readdata
+			out_port   : out std_logic_vector(9 downto 0)                      -- export
+		);
+	end component nios_system_led_out;
+
 	component nios_system_nios2_gen2_0 is
 		port (
 			clk                                 : in  std_logic                     := 'X';             -- clk
 			reset_n                             : in  std_logic                     := 'X';             -- reset_n
 			reset_req                           : in  std_logic                     := 'X';             -- reset_req
-			d_address                           : out std_logic_vector(24 downto 0);                    -- address
+			d_address                           : out std_logic_vector(25 downto 0);                    -- address
 			d_byteenable                        : out std_logic_vector(3 downto 0);                     -- byteenable
 			d_read                              : out std_logic;                                        -- read
 			d_readdata                          : in  std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
@@ -51,7 +93,7 @@ architecture rtl of nios_system is
 			d_write                             : out std_logic;                                        -- write
 			d_writedata                         : out std_logic_vector(31 downto 0);                    -- writedata
 			debug_mem_slave_debugaccess_to_roms : out std_logic;                                        -- debugaccess
-			i_address                           : out std_logic_vector(24 downto 0);                    -- address
+			i_address                           : out std_logic_vector(25 downto 0);                    -- address
 			i_read                              : out std_logic;                                        -- read
 			i_readdata                          : in  std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
 			i_waitrequest                       : in  std_logic                     := 'X';             -- waitrequest
@@ -85,6 +127,20 @@ architecture rtl of nios_system is
 		);
 	end component nios_system_onchip_memory2_0;
 
+	component nios_system_play_btn_in is
+		port (
+			clk        : in  std_logic                     := 'X';             -- clk
+			reset_n    : in  std_logic                     := 'X';             -- reset_n
+			address    : in  std_logic_vector(1 downto 0)  := (others => 'X'); -- address
+			write_n    : in  std_logic                     := 'X';             -- write_n
+			writedata  : in  std_logic_vector(31 downto 0) := (others => 'X'); -- writedata
+			chipselect : in  std_logic                     := 'X';             -- chipselect
+			readdata   : out std_logic_vector(31 downto 0);                    -- readdata
+			in_port    : in  std_logic                     := 'X';             -- export
+			irq        : out std_logic                                         -- irq
+		);
+	end component nios_system_play_btn_in;
+
 	component nios_system_sdram is
 		port (
 			clk            : in    std_logic                     := 'X';             -- clk
@@ -114,7 +170,7 @@ architecture rtl of nios_system is
 		port (
 			clk_0_clk_clk                                  : in  std_logic                     := 'X';             -- clk
 			nios2_gen2_0_reset_reset_bridge_in_reset_reset : in  std_logic                     := 'X';             -- reset
-			nios2_gen2_0_data_master_address               : in  std_logic_vector(24 downto 0) := (others => 'X'); -- address
+			nios2_gen2_0_data_master_address               : in  std_logic_vector(25 downto 0) := (others => 'X'); -- address
 			nios2_gen2_0_data_master_waitrequest           : out std_logic;                                        -- waitrequest
 			nios2_gen2_0_data_master_byteenable            : in  std_logic_vector(3 downto 0)  := (others => 'X'); -- byteenable
 			nios2_gen2_0_data_master_read                  : in  std_logic                     := 'X';             -- read
@@ -122,10 +178,17 @@ architecture rtl of nios_system is
 			nios2_gen2_0_data_master_write                 : in  std_logic                     := 'X';             -- write
 			nios2_gen2_0_data_master_writedata             : in  std_logic_vector(31 downto 0) := (others => 'X'); -- writedata
 			nios2_gen2_0_data_master_debugaccess           : in  std_logic                     := 'X';             -- debugaccess
-			nios2_gen2_0_instruction_master_address        : in  std_logic_vector(24 downto 0) := (others => 'X'); -- address
+			nios2_gen2_0_instruction_master_address        : in  std_logic_vector(25 downto 0) := (others => 'X'); -- address
 			nios2_gen2_0_instruction_master_waitrequest    : out std_logic;                                        -- waitrequest
 			nios2_gen2_0_instruction_master_read           : in  std_logic                     := 'X';             -- read
 			nios2_gen2_0_instruction_master_readdata       : out std_logic_vector(31 downto 0);                    -- readdata
+			data_in_s1_address                             : out std_logic_vector(1 downto 0);                     -- address
+			data_in_s1_readdata                            : in  std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
+			data_out_s1_address                            : out std_logic_vector(1 downto 0);                     -- address
+			data_out_s1_write                              : out std_logic;                                        -- write
+			data_out_s1_readdata                           : in  std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
+			data_out_s1_writedata                          : out std_logic_vector(31 downto 0);                    -- writedata
+			data_out_s1_chipselect                         : out std_logic;                                        -- chipselect
 			jtag_uart_0_avalon_jtag_slave_address          : out std_logic_vector(0 downto 0);                     -- address
 			jtag_uart_0_avalon_jtag_slave_write            : out std_logic;                                        -- write
 			jtag_uart_0_avalon_jtag_slave_read             : out std_logic;                                        -- read
@@ -133,6 +196,11 @@ architecture rtl of nios_system is
 			jtag_uart_0_avalon_jtag_slave_writedata        : out std_logic_vector(31 downto 0);                    -- writedata
 			jtag_uart_0_avalon_jtag_slave_waitrequest      : in  std_logic                     := 'X';             -- waitrequest
 			jtag_uart_0_avalon_jtag_slave_chipselect       : out std_logic;                                        -- chipselect
+			led_out_s1_address                             : out std_logic_vector(1 downto 0);                     -- address
+			led_out_s1_write                               : out std_logic;                                        -- write
+			led_out_s1_readdata                            : in  std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
+			led_out_s1_writedata                           : out std_logic_vector(31 downto 0);                    -- writedata
+			led_out_s1_chipselect                          : out std_logic;                                        -- chipselect
 			nios2_gen2_0_debug_mem_slave_address           : out std_logic_vector(8 downto 0);                     -- address
 			nios2_gen2_0_debug_mem_slave_write             : out std_logic;                                        -- write
 			nios2_gen2_0_debug_mem_slave_read              : out std_logic;                                        -- read
@@ -148,6 +216,16 @@ architecture rtl of nios_system is
 			onchip_memory2_0_s1_byteenable                 : out std_logic_vector(3 downto 0);                     -- byteenable
 			onchip_memory2_0_s1_chipselect                 : out std_logic;                                        -- chipselect
 			onchip_memory2_0_s1_clken                      : out std_logic;                                        -- clken
+			play_btn_in_s1_address                         : out std_logic_vector(1 downto 0);                     -- address
+			play_btn_in_s1_write                           : out std_logic;                                        -- write
+			play_btn_in_s1_readdata                        : in  std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
+			play_btn_in_s1_writedata                       : out std_logic_vector(31 downto 0);                    -- writedata
+			play_btn_in_s1_chipselect                      : out std_logic;                                        -- chipselect
+			record_btn_in_s1_address                       : out std_logic_vector(1 downto 0);                     -- address
+			record_btn_in_s1_write                         : out std_logic;                                        -- write
+			record_btn_in_s1_readdata                      : in  std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
+			record_btn_in_s1_writedata                     : out std_logic_vector(31 downto 0);                    -- writedata
+			record_btn_in_s1_chipselect                    : out std_logic;                                        -- chipselect
 			sdram_s1_address                               : out std_logic_vector(21 downto 0);                    -- address
 			sdram_s1_write                                 : out std_logic;                                        -- write
 			sdram_s1_read                                  : out std_logic;                                        -- read
@@ -156,7 +234,12 @@ architecture rtl of nios_system is
 			sdram_s1_byteenable                            : out std_logic_vector(1 downto 0);                     -- byteenable
 			sdram_s1_readdatavalid                         : in  std_logic                     := 'X';             -- readdatavalid
 			sdram_s1_waitrequest                           : in  std_logic                     := 'X';             -- waitrequest
-			sdram_s1_chipselect                            : out std_logic                                         -- chipselect
+			sdram_s1_chipselect                            : out std_logic;                                        -- chipselect
+			sync_in_s1_address                             : out std_logic_vector(1 downto 0);                     -- address
+			sync_in_s1_write                               : out std_logic;                                        -- write
+			sync_in_s1_readdata                            : in  std_logic_vector(31 downto 0) := (others => 'X'); -- readdata
+			sync_in_s1_writedata                           : out std_logic_vector(31 downto 0);                    -- writedata
+			sync_in_s1_chipselect                          : out std_logic                                         -- chipselect
 		);
 	end component nios_system_mm_interconnect_0;
 
@@ -165,6 +248,9 @@ architecture rtl of nios_system is
 			clk           : in  std_logic                     := 'X'; -- clk
 			reset         : in  std_logic                     := 'X'; -- reset
 			receiver0_irq : in  std_logic                     := 'X'; -- irq
+			receiver1_irq : in  std_logic                     := 'X'; -- irq
+			receiver2_irq : in  std_logic                     := 'X'; -- irq
+			receiver3_irq : in  std_logic                     := 'X'; -- irq
 			sender_irq    : out std_logic_vector(31 downto 0)         -- irq
 		);
 	end component nios_system_irq_mapper;
@@ -238,14 +324,14 @@ architecture rtl of nios_system is
 	signal nios2_gen2_0_data_master_readdata                               : std_logic_vector(31 downto 0); -- mm_interconnect_0:nios2_gen2_0_data_master_readdata -> nios2_gen2_0:d_readdata
 	signal nios2_gen2_0_data_master_waitrequest                            : std_logic;                     -- mm_interconnect_0:nios2_gen2_0_data_master_waitrequest -> nios2_gen2_0:d_waitrequest
 	signal nios2_gen2_0_data_master_debugaccess                            : std_logic;                     -- nios2_gen2_0:debug_mem_slave_debugaccess_to_roms -> mm_interconnect_0:nios2_gen2_0_data_master_debugaccess
-	signal nios2_gen2_0_data_master_address                                : std_logic_vector(24 downto 0); -- nios2_gen2_0:d_address -> mm_interconnect_0:nios2_gen2_0_data_master_address
+	signal nios2_gen2_0_data_master_address                                : std_logic_vector(25 downto 0); -- nios2_gen2_0:d_address -> mm_interconnect_0:nios2_gen2_0_data_master_address
 	signal nios2_gen2_0_data_master_byteenable                             : std_logic_vector(3 downto 0);  -- nios2_gen2_0:d_byteenable -> mm_interconnect_0:nios2_gen2_0_data_master_byteenable
 	signal nios2_gen2_0_data_master_read                                   : std_logic;                     -- nios2_gen2_0:d_read -> mm_interconnect_0:nios2_gen2_0_data_master_read
 	signal nios2_gen2_0_data_master_write                                  : std_logic;                     -- nios2_gen2_0:d_write -> mm_interconnect_0:nios2_gen2_0_data_master_write
 	signal nios2_gen2_0_data_master_writedata                              : std_logic_vector(31 downto 0); -- nios2_gen2_0:d_writedata -> mm_interconnect_0:nios2_gen2_0_data_master_writedata
 	signal nios2_gen2_0_instruction_master_readdata                        : std_logic_vector(31 downto 0); -- mm_interconnect_0:nios2_gen2_0_instruction_master_readdata -> nios2_gen2_0:i_readdata
 	signal nios2_gen2_0_instruction_master_waitrequest                     : std_logic;                     -- mm_interconnect_0:nios2_gen2_0_instruction_master_waitrequest -> nios2_gen2_0:i_waitrequest
-	signal nios2_gen2_0_instruction_master_address                         : std_logic_vector(24 downto 0); -- nios2_gen2_0:i_address -> mm_interconnect_0:nios2_gen2_0_instruction_master_address
+	signal nios2_gen2_0_instruction_master_address                         : std_logic_vector(25 downto 0); -- nios2_gen2_0:i_address -> mm_interconnect_0:nios2_gen2_0_instruction_master_address
 	signal nios2_gen2_0_instruction_master_read                            : std_logic;                     -- nios2_gen2_0:i_read -> mm_interconnect_0:nios2_gen2_0_instruction_master_read
 	signal mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_chipselect      : std_logic;                     -- mm_interconnect_0:jtag_uart_0_avalon_jtag_slave_chipselect -> jtag_uart_0:av_chipselect
 	signal mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_readdata        : std_logic_vector(31 downto 0); -- jtag_uart_0:av_readdata -> mm_interconnect_0:jtag_uart_0_avalon_jtag_slave_readdata
@@ -278,7 +364,37 @@ architecture rtl of nios_system is
 	signal mm_interconnect_0_sdram_s1_readdatavalid                        : std_logic;                     -- sdram:za_valid -> mm_interconnect_0:sdram_s1_readdatavalid
 	signal mm_interconnect_0_sdram_s1_write                                : std_logic;                     -- mm_interconnect_0:sdram_s1_write -> mm_interconnect_0_sdram_s1_write:in
 	signal mm_interconnect_0_sdram_s1_writedata                            : std_logic_vector(15 downto 0); -- mm_interconnect_0:sdram_s1_writedata -> sdram:az_data
+	signal mm_interconnect_0_sync_in_s1_chipselect                         : std_logic;                     -- mm_interconnect_0:sync_in_s1_chipselect -> sync_in:chipselect
+	signal mm_interconnect_0_sync_in_s1_readdata                           : std_logic_vector(31 downto 0); -- sync_in:readdata -> mm_interconnect_0:sync_in_s1_readdata
+	signal mm_interconnect_0_sync_in_s1_address                            : std_logic_vector(1 downto 0);  -- mm_interconnect_0:sync_in_s1_address -> sync_in:address
+	signal mm_interconnect_0_sync_in_s1_write                              : std_logic;                     -- mm_interconnect_0:sync_in_s1_write -> mm_interconnect_0_sync_in_s1_write:in
+	signal mm_interconnect_0_sync_in_s1_writedata                          : std_logic_vector(31 downto 0); -- mm_interconnect_0:sync_in_s1_writedata -> sync_in:writedata
+	signal mm_interconnect_0_record_btn_in_s1_chipselect                   : std_logic;                     -- mm_interconnect_0:record_btn_in_s1_chipselect -> record_btn_in:chipselect
+	signal mm_interconnect_0_record_btn_in_s1_readdata                     : std_logic_vector(31 downto 0); -- record_btn_in:readdata -> mm_interconnect_0:record_btn_in_s1_readdata
+	signal mm_interconnect_0_record_btn_in_s1_address                      : std_logic_vector(1 downto 0);  -- mm_interconnect_0:record_btn_in_s1_address -> record_btn_in:address
+	signal mm_interconnect_0_record_btn_in_s1_write                        : std_logic;                     -- mm_interconnect_0:record_btn_in_s1_write -> mm_interconnect_0_record_btn_in_s1_write:in
+	signal mm_interconnect_0_record_btn_in_s1_writedata                    : std_logic_vector(31 downto 0); -- mm_interconnect_0:record_btn_in_s1_writedata -> record_btn_in:writedata
+	signal mm_interconnect_0_play_btn_in_s1_chipselect                     : std_logic;                     -- mm_interconnect_0:play_btn_in_s1_chipselect -> play_btn_in:chipselect
+	signal mm_interconnect_0_play_btn_in_s1_readdata                       : std_logic_vector(31 downto 0); -- play_btn_in:readdata -> mm_interconnect_0:play_btn_in_s1_readdata
+	signal mm_interconnect_0_play_btn_in_s1_address                        : std_logic_vector(1 downto 0);  -- mm_interconnect_0:play_btn_in_s1_address -> play_btn_in:address
+	signal mm_interconnect_0_play_btn_in_s1_write                          : std_logic;                     -- mm_interconnect_0:play_btn_in_s1_write -> mm_interconnect_0_play_btn_in_s1_write:in
+	signal mm_interconnect_0_play_btn_in_s1_writedata                      : std_logic_vector(31 downto 0); -- mm_interconnect_0:play_btn_in_s1_writedata -> play_btn_in:writedata
+	signal mm_interconnect_0_data_out_s1_chipselect                        : std_logic;                     -- mm_interconnect_0:data_out_s1_chipselect -> data_out:chipselect
+	signal mm_interconnect_0_data_out_s1_readdata                          : std_logic_vector(31 downto 0); -- data_out:readdata -> mm_interconnect_0:data_out_s1_readdata
+	signal mm_interconnect_0_data_out_s1_address                           : std_logic_vector(1 downto 0);  -- mm_interconnect_0:data_out_s1_address -> data_out:address
+	signal mm_interconnect_0_data_out_s1_write                             : std_logic;                     -- mm_interconnect_0:data_out_s1_write -> mm_interconnect_0_data_out_s1_write:in
+	signal mm_interconnect_0_data_out_s1_writedata                         : std_logic_vector(31 downto 0); -- mm_interconnect_0:data_out_s1_writedata -> data_out:writedata
+	signal mm_interconnect_0_data_in_s1_readdata                           : std_logic_vector(31 downto 0); -- data_in:readdata -> mm_interconnect_0:data_in_s1_readdata
+	signal mm_interconnect_0_data_in_s1_address                            : std_logic_vector(1 downto 0);  -- mm_interconnect_0:data_in_s1_address -> data_in:address
+	signal mm_interconnect_0_led_out_s1_chipselect                         : std_logic;                     -- mm_interconnect_0:led_out_s1_chipselect -> led_out:chipselect
+	signal mm_interconnect_0_led_out_s1_readdata                           : std_logic_vector(31 downto 0); -- led_out:readdata -> mm_interconnect_0:led_out_s1_readdata
+	signal mm_interconnect_0_led_out_s1_address                            : std_logic_vector(1 downto 0);  -- mm_interconnect_0:led_out_s1_address -> led_out:address
+	signal mm_interconnect_0_led_out_s1_write                              : std_logic;                     -- mm_interconnect_0:led_out_s1_write -> mm_interconnect_0_led_out_s1_write:in
+	signal mm_interconnect_0_led_out_s1_writedata                          : std_logic_vector(31 downto 0); -- mm_interconnect_0:led_out_s1_writedata -> led_out:writedata
 	signal irq_mapper_receiver0_irq                                        : std_logic;                     -- jtag_uart_0:av_irq -> irq_mapper:receiver0_irq
+	signal irq_mapper_receiver1_irq                                        : std_logic;                     -- sync_in:irq -> irq_mapper:receiver1_irq
+	signal irq_mapper_receiver2_irq                                        : std_logic;                     -- record_btn_in:irq -> irq_mapper:receiver2_irq
+	signal irq_mapper_receiver3_irq                                        : std_logic;                     -- play_btn_in:irq -> irq_mapper:receiver3_irq
 	signal nios2_gen2_0_irq_irq                                            : std_logic_vector(31 downto 0); -- irq_mapper:sender_irq -> nios2_gen2_0:irq
 	signal rst_controller_reset_out_reset                                  : std_logic;                     -- rst_controller:reset_out -> [irq_mapper:reset, mm_interconnect_0:nios2_gen2_0_reset_reset_bridge_in_reset_reset, onchip_memory2_0:reset, rst_controller_reset_out_reset:in, rst_translator:in_reset]
 	signal rst_controller_reset_out_reset_req                              : std_logic;                     -- rst_controller:reset_req -> [nios2_gen2_0:reset_req, onchip_memory2_0:reset_req, rst_translator:reset_req_in]
@@ -289,9 +405,35 @@ architecture rtl of nios_system is
 	signal mm_interconnect_0_sdram_s1_read_ports_inv                       : std_logic;                     -- mm_interconnect_0_sdram_s1_read:inv -> sdram:az_rd_n
 	signal mm_interconnect_0_sdram_s1_byteenable_ports_inv                 : std_logic_vector(1 downto 0);  -- mm_interconnect_0_sdram_s1_byteenable:inv -> sdram:az_be_n
 	signal mm_interconnect_0_sdram_s1_write_ports_inv                      : std_logic;                     -- mm_interconnect_0_sdram_s1_write:inv -> sdram:az_wr_n
-	signal rst_controller_reset_out_reset_ports_inv                        : std_logic;                     -- rst_controller_reset_out_reset:inv -> [jtag_uart_0:rst_n, nios2_gen2_0:reset_n, sdram:reset_n]
+	signal mm_interconnect_0_sync_in_s1_write_ports_inv                    : std_logic;                     -- mm_interconnect_0_sync_in_s1_write:inv -> sync_in:write_n
+	signal mm_interconnect_0_record_btn_in_s1_write_ports_inv              : std_logic;                     -- mm_interconnect_0_record_btn_in_s1_write:inv -> record_btn_in:write_n
+	signal mm_interconnect_0_play_btn_in_s1_write_ports_inv                : std_logic;                     -- mm_interconnect_0_play_btn_in_s1_write:inv -> play_btn_in:write_n
+	signal mm_interconnect_0_data_out_s1_write_ports_inv                   : std_logic;                     -- mm_interconnect_0_data_out_s1_write:inv -> data_out:write_n
+	signal mm_interconnect_0_led_out_s1_write_ports_inv                    : std_logic;                     -- mm_interconnect_0_led_out_s1_write:inv -> led_out:write_n
+	signal rst_controller_reset_out_reset_ports_inv                        : std_logic;                     -- rst_controller_reset_out_reset:inv -> [data_in:reset_n, data_out:reset_n, jtag_uart_0:rst_n, led_out:reset_n, nios2_gen2_0:reset_n, play_btn_in:reset_n, record_btn_in:reset_n, sdram:reset_n, sync_in:reset_n]
 
 begin
+
+	data_in : component nios_system_data_in
+		port map (
+			clk      => clk_clk,                                  --                 clk.clk
+			reset_n  => rst_controller_reset_out_reset_ports_inv, --               reset.reset_n
+			address  => mm_interconnect_0_data_in_s1_address,     --                  s1.address
+			readdata => mm_interconnect_0_data_in_s1_readdata,    --                    .readdata
+			in_port  => data_in_export                            -- external_connection.export
+		);
+
+	data_out : component nios_system_data_out
+		port map (
+			clk        => clk_clk,                                       --                 clk.clk
+			reset_n    => rst_controller_reset_out_reset_ports_inv,      --               reset.reset_n
+			address    => mm_interconnect_0_data_out_s1_address,         --                  s1.address
+			write_n    => mm_interconnect_0_data_out_s1_write_ports_inv, --                    .write_n
+			writedata  => mm_interconnect_0_data_out_s1_writedata,       --                    .writedata
+			chipselect => mm_interconnect_0_data_out_s1_chipselect,      --                    .chipselect
+			readdata   => mm_interconnect_0_data_out_s1_readdata,        --                    .readdata
+			out_port   => data_out_export                                -- external_connection.export
+		);
 
 	jtag_uart_0 : component nios_system_jtag_uart_0
 		port map (
@@ -305,6 +447,18 @@ begin
 			av_writedata   => mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_writedata,       --                  .writedata
 			av_waitrequest => mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_waitrequest,     --                  .waitrequest
 			av_irq         => irq_mapper_receiver0_irq                                         --               irq.irq
+		);
+
+	led_out : component nios_system_led_out
+		port map (
+			clk        => clk_clk,                                      --                 clk.clk
+			reset_n    => rst_controller_reset_out_reset_ports_inv,     --               reset.reset_n
+			address    => mm_interconnect_0_led_out_s1_address,         --                  s1.address
+			write_n    => mm_interconnect_0_led_out_s1_write_ports_inv, --                    .write_n
+			writedata  => mm_interconnect_0_led_out_s1_writedata,       --                    .writedata
+			chipselect => mm_interconnect_0_led_out_s1_chipselect,      --                    .chipselect
+			readdata   => mm_interconnect_0_led_out_s1_readdata,        --                    .readdata
+			out_port   => led_out_export                                -- external_connection.export
 		);
 
 	nios2_gen2_0 : component nios_system_nios2_gen2_0
@@ -352,6 +506,32 @@ begin
 			freeze     => '0'                                               -- (terminated)
 		);
 
+	play_btn_in : component nios_system_play_btn_in
+		port map (
+			clk        => clk_clk,                                          --                 clk.clk
+			reset_n    => rst_controller_reset_out_reset_ports_inv,         --               reset.reset_n
+			address    => mm_interconnect_0_play_btn_in_s1_address,         --                  s1.address
+			write_n    => mm_interconnect_0_play_btn_in_s1_write_ports_inv, --                    .write_n
+			writedata  => mm_interconnect_0_play_btn_in_s1_writedata,       --                    .writedata
+			chipselect => mm_interconnect_0_play_btn_in_s1_chipselect,      --                    .chipselect
+			readdata   => mm_interconnect_0_play_btn_in_s1_readdata,        --                    .readdata
+			in_port    => play_btn_in_export,                               -- external_connection.export
+			irq        => irq_mapper_receiver3_irq                          --                 irq.irq
+		);
+
+	record_btn_in : component nios_system_play_btn_in
+		port map (
+			clk        => clk_clk,                                            --                 clk.clk
+			reset_n    => rst_controller_reset_out_reset_ports_inv,           --               reset.reset_n
+			address    => mm_interconnect_0_record_btn_in_s1_address,         --                  s1.address
+			write_n    => mm_interconnect_0_record_btn_in_s1_write_ports_inv, --                    .write_n
+			writedata  => mm_interconnect_0_record_btn_in_s1_writedata,       --                    .writedata
+			chipselect => mm_interconnect_0_record_btn_in_s1_chipselect,      --                    .chipselect
+			readdata   => mm_interconnect_0_record_btn_in_s1_readdata,        --                    .readdata
+			in_port    => record_btn_in_export,                               -- external_connection.export
+			irq        => irq_mapper_receiver2_irq                            --                 irq.irq
+		);
+
 	sdram : component nios_system_sdram
 		port map (
 			clk            => clk_clk,                                         --   clk.clk
@@ -376,6 +556,19 @@ begin
 			zs_we_n        => sdram_we_n                                       --      .export
 		);
 
+	sync_in : component nios_system_play_btn_in
+		port map (
+			clk        => clk_clk,                                      --                 clk.clk
+			reset_n    => rst_controller_reset_out_reset_ports_inv,     --               reset.reset_n
+			address    => mm_interconnect_0_sync_in_s1_address,         --                  s1.address
+			write_n    => mm_interconnect_0_sync_in_s1_write_ports_inv, --                    .write_n
+			writedata  => mm_interconnect_0_sync_in_s1_writedata,       --                    .writedata
+			chipselect => mm_interconnect_0_sync_in_s1_chipselect,      --                    .chipselect
+			readdata   => mm_interconnect_0_sync_in_s1_readdata,        --                    .readdata
+			in_port    => sync_in_export,                               -- external_connection.export
+			irq        => irq_mapper_receiver1_irq                      --                 irq.irq
+		);
+
 	mm_interconnect_0 : component nios_system_mm_interconnect_0
 		port map (
 			clk_0_clk_clk                                  => clk_clk,                                                     --                                clk_0_clk.clk
@@ -392,6 +585,13 @@ begin
 			nios2_gen2_0_instruction_master_waitrequest    => nios2_gen2_0_instruction_master_waitrequest,                 --                                         .waitrequest
 			nios2_gen2_0_instruction_master_read           => nios2_gen2_0_instruction_master_read,                        --                                         .read
 			nios2_gen2_0_instruction_master_readdata       => nios2_gen2_0_instruction_master_readdata,                    --                                         .readdata
+			data_in_s1_address                             => mm_interconnect_0_data_in_s1_address,                        --                               data_in_s1.address
+			data_in_s1_readdata                            => mm_interconnect_0_data_in_s1_readdata,                       --                                         .readdata
+			data_out_s1_address                            => mm_interconnect_0_data_out_s1_address,                       --                              data_out_s1.address
+			data_out_s1_write                              => mm_interconnect_0_data_out_s1_write,                         --                                         .write
+			data_out_s1_readdata                           => mm_interconnect_0_data_out_s1_readdata,                      --                                         .readdata
+			data_out_s1_writedata                          => mm_interconnect_0_data_out_s1_writedata,                     --                                         .writedata
+			data_out_s1_chipselect                         => mm_interconnect_0_data_out_s1_chipselect,                    --                                         .chipselect
 			jtag_uart_0_avalon_jtag_slave_address          => mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_address,     --            jtag_uart_0_avalon_jtag_slave.address
 			jtag_uart_0_avalon_jtag_slave_write            => mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_write,       --                                         .write
 			jtag_uart_0_avalon_jtag_slave_read             => mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_read,        --                                         .read
@@ -399,6 +599,11 @@ begin
 			jtag_uart_0_avalon_jtag_slave_writedata        => mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_writedata,   --                                         .writedata
 			jtag_uart_0_avalon_jtag_slave_waitrequest      => mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_waitrequest, --                                         .waitrequest
 			jtag_uart_0_avalon_jtag_slave_chipselect       => mm_interconnect_0_jtag_uart_0_avalon_jtag_slave_chipselect,  --                                         .chipselect
+			led_out_s1_address                             => mm_interconnect_0_led_out_s1_address,                        --                               led_out_s1.address
+			led_out_s1_write                               => mm_interconnect_0_led_out_s1_write,                          --                                         .write
+			led_out_s1_readdata                            => mm_interconnect_0_led_out_s1_readdata,                       --                                         .readdata
+			led_out_s1_writedata                           => mm_interconnect_0_led_out_s1_writedata,                      --                                         .writedata
+			led_out_s1_chipselect                          => mm_interconnect_0_led_out_s1_chipselect,                     --                                         .chipselect
 			nios2_gen2_0_debug_mem_slave_address           => mm_interconnect_0_nios2_gen2_0_debug_mem_slave_address,      --             nios2_gen2_0_debug_mem_slave.address
 			nios2_gen2_0_debug_mem_slave_write             => mm_interconnect_0_nios2_gen2_0_debug_mem_slave_write,        --                                         .write
 			nios2_gen2_0_debug_mem_slave_read              => mm_interconnect_0_nios2_gen2_0_debug_mem_slave_read,         --                                         .read
@@ -414,6 +619,16 @@ begin
 			onchip_memory2_0_s1_byteenable                 => mm_interconnect_0_onchip_memory2_0_s1_byteenable,            --                                         .byteenable
 			onchip_memory2_0_s1_chipselect                 => mm_interconnect_0_onchip_memory2_0_s1_chipselect,            --                                         .chipselect
 			onchip_memory2_0_s1_clken                      => mm_interconnect_0_onchip_memory2_0_s1_clken,                 --                                         .clken
+			play_btn_in_s1_address                         => mm_interconnect_0_play_btn_in_s1_address,                    --                           play_btn_in_s1.address
+			play_btn_in_s1_write                           => mm_interconnect_0_play_btn_in_s1_write,                      --                                         .write
+			play_btn_in_s1_readdata                        => mm_interconnect_0_play_btn_in_s1_readdata,                   --                                         .readdata
+			play_btn_in_s1_writedata                       => mm_interconnect_0_play_btn_in_s1_writedata,                  --                                         .writedata
+			play_btn_in_s1_chipselect                      => mm_interconnect_0_play_btn_in_s1_chipselect,                 --                                         .chipselect
+			record_btn_in_s1_address                       => mm_interconnect_0_record_btn_in_s1_address,                  --                         record_btn_in_s1.address
+			record_btn_in_s1_write                         => mm_interconnect_0_record_btn_in_s1_write,                    --                                         .write
+			record_btn_in_s1_readdata                      => mm_interconnect_0_record_btn_in_s1_readdata,                 --                                         .readdata
+			record_btn_in_s1_writedata                     => mm_interconnect_0_record_btn_in_s1_writedata,                --                                         .writedata
+			record_btn_in_s1_chipselect                    => mm_interconnect_0_record_btn_in_s1_chipselect,               --                                         .chipselect
 			sdram_s1_address                               => mm_interconnect_0_sdram_s1_address,                          --                                 sdram_s1.address
 			sdram_s1_write                                 => mm_interconnect_0_sdram_s1_write,                            --                                         .write
 			sdram_s1_read                                  => mm_interconnect_0_sdram_s1_read,                             --                                         .read
@@ -422,7 +637,12 @@ begin
 			sdram_s1_byteenable                            => mm_interconnect_0_sdram_s1_byteenable,                       --                                         .byteenable
 			sdram_s1_readdatavalid                         => mm_interconnect_0_sdram_s1_readdatavalid,                    --                                         .readdatavalid
 			sdram_s1_waitrequest                           => mm_interconnect_0_sdram_s1_waitrequest,                      --                                         .waitrequest
-			sdram_s1_chipselect                            => mm_interconnect_0_sdram_s1_chipselect                        --                                         .chipselect
+			sdram_s1_chipselect                            => mm_interconnect_0_sdram_s1_chipselect,                       --                                         .chipselect
+			sync_in_s1_address                             => mm_interconnect_0_sync_in_s1_address,                        --                               sync_in_s1.address
+			sync_in_s1_write                               => mm_interconnect_0_sync_in_s1_write,                          --                                         .write
+			sync_in_s1_readdata                            => mm_interconnect_0_sync_in_s1_readdata,                       --                                         .readdata
+			sync_in_s1_writedata                           => mm_interconnect_0_sync_in_s1_writedata,                      --                                         .writedata
+			sync_in_s1_chipselect                          => mm_interconnect_0_sync_in_s1_chipselect                      --                                         .chipselect
 		);
 
 	irq_mapper : component nios_system_irq_mapper
@@ -430,6 +650,9 @@ begin
 			clk           => clk_clk,                        --       clk.clk
 			reset         => rst_controller_reset_out_reset, -- clk_reset.reset
 			receiver0_irq => irq_mapper_receiver0_irq,       -- receiver0.irq
+			receiver1_irq => irq_mapper_receiver1_irq,       -- receiver1.irq
+			receiver2_irq => irq_mapper_receiver2_irq,       -- receiver2.irq
+			receiver3_irq => irq_mapper_receiver3_irq,       -- receiver3.irq
 			sender_irq    => nios2_gen2_0_irq_irq            --    sender.irq
 		);
 
@@ -509,6 +732,16 @@ begin
 	mm_interconnect_0_sdram_s1_byteenable_ports_inv <= not mm_interconnect_0_sdram_s1_byteenable;
 
 	mm_interconnect_0_sdram_s1_write_ports_inv <= not mm_interconnect_0_sdram_s1_write;
+
+	mm_interconnect_0_sync_in_s1_write_ports_inv <= not mm_interconnect_0_sync_in_s1_write;
+
+	mm_interconnect_0_record_btn_in_s1_write_ports_inv <= not mm_interconnect_0_record_btn_in_s1_write;
+
+	mm_interconnect_0_play_btn_in_s1_write_ports_inv <= not mm_interconnect_0_play_btn_in_s1_write;
+
+	mm_interconnect_0_data_out_s1_write_ports_inv <= not mm_interconnect_0_data_out_s1_write;
+
+	mm_interconnect_0_led_out_s1_write_ports_inv <= not mm_interconnect_0_led_out_s1_write;
 
 	rst_controller_reset_out_reset_ports_inv <= not rst_controller_reset_out_reset;
 

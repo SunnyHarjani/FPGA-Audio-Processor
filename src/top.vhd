@@ -61,10 +61,6 @@ entity top is
 end top;
 
 architecture beh of top is
-  TYPE state_type is (idle, recording, playing);
-  signal current_state, next_state : state_type := idle;
-  
-  
   component rising_edge_synchronizer
     port(
       clk               : in std_logic;
@@ -74,21 +70,27 @@ architecture beh of top is
     );          
   end component;
   
-  	component nios_system is
-	port (
-		clk_clk                    : in    std_logic                     := 'X';             -- clk
-		reset_reset_n              : in    std_logic                     := 'X';             -- reset_n
-		sdram_addr                 : out   std_logic_vector(11 downto 0);                    -- addr
-		sdram_ba                   : out   std_logic_vector(1 downto 0);                     -- ba
-		sdram_cas_n                : out   std_logic;                                        -- cas_n
-		sdram_cke                  : out   std_logic;                                        -- cke
-		sdram_cs_n                 : out   std_logic;                                        -- cs_n
-		sdram_dq                   : inout std_logic_vector(15 downto 0) := (others => 'X'); -- dq
-		sdram_dqm                  : out   std_logic_vector(1 downto 0);                     -- dqm
-		sdram_ras_n                : out   std_logic;                                        -- ras_n
-		sdram_we_n                 : out   std_logic                                        -- we_n
-	);
-end component nios_system;
+	component nios_system is
+		port (
+			clk_clk              : in    std_logic                     := 'X';             -- clk
+			data_in_export       : in    std_logic_vector(15 downto 0) := (others => 'X'); -- export
+			data_out_export      : out   std_logic_vector(15 downto 0);                    -- export
+			led_out_export       : out   std_logic_vector(9 downto 0);                     -- export
+			play_btn_in_export   : in    std_logic                     := 'X';             -- export
+			record_btn_in_export : in    std_logic                     := 'X';             -- export
+			reset_reset_n        : in    std_logic                     := 'X';             -- reset_n
+			sdram_addr           : out   std_logic_vector(11 downto 0);                    -- addr
+			sdram_ba             : out   std_logic_vector(1 downto 0);                     -- ba
+			sdram_cas_n          : out   std_logic;                                        -- cas_n
+			sdram_cke            : out   std_logic;                                        -- cke
+			sdram_cs_n           : out   std_logic;                                        -- cs_n
+			sdram_dq             : inout std_logic_vector(15 downto 0) := (others => 'X'); -- dq
+			sdram_dqm            : out   std_logic_vector(1 downto 0);                     -- dqm
+			sdram_ras_n          : out   std_logic;                                        -- ras_n
+			sdram_we_n           : out   std_logic;                                        -- we_n
+			sync_in_export       : in    std_logic                     := 'X'              -- export
+		);
+	end component nios_system;
 
   component clock_generator
     port( 
@@ -127,117 +129,69 @@ end component nios_system;
     );
   end component;
   
-  signal read_ready       : std_logic;
-  signal write_ready      : std_logic;
-  signal read_s           : std_logic;
-  signal write_s          : std_logic;
-  signal readdata_left    : std_logic_vector(23 DOWNTO 0);
-  signal readdata_right   : std_logic_vector(23 DOWNTO 0);            
-  signal writedata_left   : std_logic_vector(23 DOWNTO 0);
-  signal writedata_right  : std_logic_vector(23 DOWNTO 0);             
-  signal write_data       : std_logic_vector(15 DOWNTO 0);                        
-  signal write_data_24    : std_logic_vector(23 DOWNTO 0);                        
-  signal led              : std_logic_vector(9 DOWNTO 0);           
-  signal reset            : std_logic;
-  signal enable           : std_logic;
-  signal execute_btn      : std_logic;
- 
-  signal synced_execute   : std_logic;
-  signal SDRAM_DQM : std_logic_vector(1 downto 0);
-  signal SDRAM_ADDR : std_logic_vector(11 downto 0);
-  
-  signal led_state        : std_logic_vector(9 downto 0);
-  signal reset_n : std_logic;
+  signal read_ready        : std_logic;
+  signal write_ready       : std_logic;
+  signal read_s            : std_logic;
+  signal write_s           : std_logic;
+  signal readdata_left     : std_logic_vector(23 DOWNTO 0);
+  signal readdata_right    : std_logic_vector(23 DOWNTO 0);                      
+  signal write_data        : std_logic_vector(15 DOWNTO 0);
+  signal write_data_24     : std_logic_vector(23 DOWNTO 0);
+  signal reset_n           : std_logic;  
+  signal reset             : std_logic;
+  signal sync              : std_logic;
+  signal synced_record_btn : std_logic;
+  signal synced_play_btn   : std_logic;
+  signal SDRAM_DQM         : std_logic_vector(1 downto 0);
+  signal SDRAM_ADDR        : std_logic_vector(11 downto 0);
   
 begin
   reset_n <= KEY(0);
   reset <= NOT reset_n;
-  execute_btn <= KEY(1);
-
-  writedata_left <= readdata_left;
-  writedata_right <= readdata_right;
+  sync <= write_ready AND read_ready;
   read_s <= read_ready;
   write_s <= write_ready AND read_ready;
-  
-DRAM_UDQM <= SDRAM_DQM(1);
-DRAM_LDQM <= SDRAM_DQM(0);
-DRAM_ADDR <= '0' & SDRAM_ADDR;
+  write_data_24 <= write_data & "00000000";
+  DRAM_UDQM <= SDRAM_DQM(1);
+  DRAM_LDQM <= SDRAM_DQM(0);
+  DRAM_ADDR <= '0' & SDRAM_ADDR;
 			
 
-sync_inst : rising_edge_synchronizer
-  port map (
-    clk     => CLOCK_50,
-    reset   => reset,
-    input   => execute_btn,
-    edge    => synced_execute
-  );
-  
-	process(CLOCK_50, reset, current_state, next_state) is
-	begin
-		if reset = '1' then
-			current_state <= idle;
-		elsif rising_edge(CLOCK_50) then
-			current_state <= next_state;
-		else
-			current_state <= current_state;
-		end if;
-	end process;
-
-  process(CLOCK_50, reset, synced_execute, current_state) is
-  begin
-    if reset = '1' then
-      next_state <= idle;
-    elsif rising_edge(CLOCK_50) then
-      if synced_execute = '1' then
-        case(current_state) is
-          when idle => next_state <= recording;
-          when recording => next_state <= playing;
-          when others => next_state <= idle;
-        end case;
-      end if;
-    end if;
-	end process;
+  record_sync : rising_edge_synchronizer
+    port map (
+      clk     => CLOCK_50,
+      reset   => reset,
+      input   => KEY(1),
+      edge    => synced_record_btn
+    );
+  play_sync : rising_edge_synchronizer
+    port map (
+      clk     => CLOCK_50,
+      reset   => reset,
+      input   => KEY(2),
+      edge    => synced_play_btn
+    );
   
   	u0 : component nios_system
 		port map (
-			clk_clk                    => CLOCK_50,                    --               clk.clk
-			reset_reset_n              => reset_n,              --             reset.reset_n
-			sdram_addr                 => SDRAM_ADDR,                 --             sdram.addr
-			sdram_ba                   => DRAM_BA,                   --                  .ba
-			sdram_cas_n                => DRAM_CAS_N,                --                  .cas_n
-			sdram_cke                  => DRAM_CKE,                  --                  .cke
-			sdram_cs_n                 => DRAM_cs_n,                 --                  .cs_n
-			sdram_dq                   => DRAM_DQ,                   --                  .dq
-			sdram_dqm                  => SDRAM_DQM,                  --                  .dqm
-			sdram_ras_n                => DRAM_RAS_N,                --                  .ras_n
-			sdram_we_n                 => DRAM_WE_N                 --                  .we_n
+			clk_clk              => CLOCK_50,                   --           clk.clk
+			reset_reset_n        => reset_n,                    --         reset.reset_n
+			sdram_addr           => SDRAM_ADDR,                 --         sdram.addr
+			sdram_ba             => DRAM_BA,                    --              .ba
+			sdram_cas_n          => DRAM_CAS_N,                 --              .cas_n
+			sdram_cke            => DRAM_CKE,                   --              .cke
+			sdram_cs_n           => DRAM_cs_n,                  --              .cs_n
+			sdram_dq             => DRAM_DQ,                    --              .dq
+			sdram_dqm            => SDRAM_DQM,                  --              .dqm
+			sdram_ras_n          => DRAM_RAS_N,                 --              .ras_n
+			sdram_we_n           => DRAM_WE_N,                  --              .we_n
+			sync_in_export       => sync,                       --       sync_in.export
+			record_btn_in_export => synced_record_btn,          -- record_btn_in.export
+			play_btn_in_export   => synced_play_btn,            --   play_btn_in.export
+			data_out_export      => write_data,                 --      data_out.export
+			data_in_export       => readdata_left(23 downto 8), --       data_in.export
+			led_out_export       => LEDR                        --       led_out.export
 		);
-
-  process(CLOCK_50,reset)
-  begin 
-    if (reset = '1') then 
-      write_data <= (others => '0');
-    elsif rising_edge(CLOCK_50) then
-      if (write_s = '1') then
-        case(current_state) is
-          when recording => write_data <= (others => '0'); -- silence
-          when playing => write_data <= std_logic_vector(signed(DRAM_DQ)); -- 
-          when others => write_data <= readdata_left(23 downto 8); -- passthrough
-        end case;
-      end if;
-    end if;
-  end process;
-
-  process(CLOCK_50)
-  begin 
-    if rising_edge(CLOCK_50) then
-      case(current_state) is
-        when recording => led <= "1000000000";
-        when playing => led <= "0100000000";
-        when others => led <= "1111111111";
-      end case;
-    end if;
-  end process;
   
   my_clock_gen: clock_generator 
     port map (
@@ -272,7 +226,4 @@ sync_inst : rising_edge_synchronizer
       readdata_right    => readdata_right,
       AUD_DACDAT        => AUD_DACDAT
     );
-    
-    write_data_24 <= write_data & "00000000";
-    LEDR <= led;
 end beh;
