@@ -61,36 +61,29 @@ entity top is
 end top;
 
 architecture beh of top is
-  component rising_edge_synchronizer
-    port(
-      clk               : in std_logic;
-      reset             : in std_logic;
-      input             : in std_logic;
-      edge              : out std_logic
-    );          
-  end component;
-  
-	component nios_system is
+	component DE1_SoC_QSYS is
 		port (
-			clk_clk              : in    std_logic                     := 'X';             -- clk
-			data_in_export       : in    std_logic_vector(15 downto 0) := (others => 'X'); -- export
-			data_out_export      : out   std_logic_vector(15 downto 0);                    -- export
-			led_out_export       : out   std_logic_vector(9 downto 0);                     -- export
-			play_btn_in_export   : in    std_logic                     := 'X';             -- export
-			record_btn_in_export : in    std_logic                     := 'X';             -- export
-			reset_reset_n        : in    std_logic                     := 'X';             -- reset_n
-			sdram_addr           : out   std_logic_vector(11 downto 0);                    -- addr
-			sdram_ba             : out   std_logic_vector(1 downto 0);                     -- ba
-			sdram_cas_n          : out   std_logic;                                        -- cas_n
-			sdram_cke            : out   std_logic;                                        -- cke
-			sdram_cs_n           : out   std_logic;                                        -- cs_n
-			sdram_dq             : inout std_logic_vector(15 downto 0) := (others => 'X'); -- dq
-			sdram_dqm            : out   std_logic_vector(1 downto 0);                     -- dqm
-			sdram_ras_n          : out   std_logic;                                        -- ras_n
-			sdram_we_n           : out   std_logic;                                        -- we_n
-			sync_in_export       : in    std_logic                     := 'X'              -- export
+			clk_clk                        : in    std_logic                     := 'X';             -- clk
+			reset_reset_n                  : in    std_logic                     := 'X';             -- reset_n
+			data_in_export                 : in    std_logic_vector(15 downto 0) := (others => 'X'); -- export
+			data_out_export                : out   std_logic_vector(15 downto 0);                    -- export
+			key_external_connection_export : in    std_logic_vector(3 downto 0)  := (others => 'X'); -- export
+			clk_sdram_clk                  : out   std_logic;                                        -- clk
+		   --pll_locked_export              : out   std_logic;                                        -- export
+			sdram_wire_addr                : out   std_logic_vector(12 downto 0);                    -- addr
+			sdram_wire_ba                  : out   std_logic_vector(1 downto 0);                     -- ba
+			sdram_wire_cas_n               : out   std_logic;                                        -- cas_n
+			sdram_wire_cke                 : out   std_logic;                                        -- cke
+			sdram_wire_cs_n                : out   std_logic;                                        -- cs_n
+			sdram_wire_dq                  : inout std_logic_vector(15 downto 0) := (others => 'X'); -- dq
+			sdram_wire_dqm                 : out   std_logic_vector(1 downto 0);                     -- dqm
+			sdram_wire_ras_n               : out   std_logic;                                        -- ras_n
+			sdram_wire_we_n                : out   std_logic;
+			sync_in_export                 : in    std_logic                     := 'X';              -- export			-- we_n
+			play_btn_in_export             : in    std_logic                     := 'X';             -- export
+			record_btn_in_export           : in    std_logic                     := 'X'              -- export
 		);
-	end component nios_system;
+	end component DE1_SoC_QSYS;
 
   component clock_generator
     port( 
@@ -129,68 +122,55 @@ architecture beh of top is
     );
   end component;
   
-  signal read_ready        : std_logic;
-  signal write_ready       : std_logic;
-  signal read_s            : std_logic;
-  signal write_s           : std_logic;
-  signal readdata_left     : std_logic_vector(23 DOWNTO 0);
-  signal readdata_right    : std_logic_vector(23 DOWNTO 0);                      
-  signal write_data        : std_logic_vector(15 DOWNTO 0);
-  signal write_data_24     : std_logic_vector(23 DOWNTO 0);
-  signal reset_n           : std_logic;  
-  signal reset             : std_logic;
-  signal sync              : std_logic;
-  signal synced_record_btn : std_logic;
-  signal synced_play_btn   : std_logic;
-  signal SDRAM_DQM         : std_logic_vector(1 downto 0);
-  signal SDRAM_ADDR        : std_logic_vector(11 downto 0);
+  signal read_ready       : std_logic;
+  signal write_ready      : std_logic;
+  signal read_s           : std_logic;
+  signal write_s          : std_logic;
+  signal readdata_left    : std_logic_vector(23 DOWNTO 0);
+  signal readdata_right   : std_logic_vector(23 DOWNTO 0);            
+  signal writedata_left   : std_logic_vector(23 DOWNTO 0);
+  signal writedata_right  : std_logic_vector(23 DOWNTO 0);             
+  signal write_data       : std_logic_vector(15 DOWNTO 0);                        
+  signal write_data_24    : std_logic_vector(23 DOWNTO 0);        
+  signal reset            : std_logic;
+  signal SDRAM_DQM : std_logic_vector(1 downto 0);
+  signal SDRAM_ADDR : std_logic_vector(11 downto 0);
+  
+  signal reset_n : std_logic;
   
 begin
   reset_n <= KEY(0);
   reset <= NOT reset_n;
-  sync <= write_ready AND read_ready;
+
+  writedata_left <= readdata_left;
+  writedata_right <= readdata_right;
   read_s <= read_ready;
   write_s <= write_ready AND read_ready;
-  write_data_24 <= write_data & "00000000";
+  
   DRAM_UDQM <= SDRAM_DQM(1);
   DRAM_LDQM <= SDRAM_DQM(0);
-  DRAM_ADDR <= '0' & SDRAM_ADDR;
-			
 
-  record_sync : rising_edge_synchronizer
-    port map (
-      clk     => CLOCK_50,
-      reset   => reset,
-      input   => KEY(1),
-      edge    => synced_record_btn
-    );
-  play_sync : rising_edge_synchronizer
-    port map (
-      clk     => CLOCK_50,
-      reset   => reset,
-      input   => KEY(2),
-      edge    => synced_play_btn
-    );
-  
-  	u0 : component nios_system
+	u0 : component DE1_SoC_QSYS
 		port map (
-			clk_clk              => CLOCK_50,                   --           clk.clk
-			reset_reset_n        => reset_n,                    --         reset.reset_n
-			sdram_addr           => SDRAM_ADDR,                 --         sdram.addr
-			sdram_ba             => DRAM_BA,                    --              .ba
-			sdram_cas_n          => DRAM_CAS_N,                 --              .cas_n
-			sdram_cke            => DRAM_CKE,                   --              .cke
-			sdram_cs_n           => DRAM_cs_n,                  --              .cs_n
-			sdram_dq             => DRAM_DQ,                    --              .dq
-			sdram_dqm            => SDRAM_DQM,                  --              .dqm
-			sdram_ras_n          => DRAM_RAS_N,                 --              .ras_n
-			sdram_we_n           => DRAM_WE_N,                  --              .we_n
-			sync_in_export       => sync,                       --       sync_in.export
-			record_btn_in_export => synced_record_btn,          -- record_btn_in.export
-			play_btn_in_export   => synced_play_btn,            --   play_btn_in.export
-			data_out_export      => write_data,                 --      data_out.export
-			data_in_export       => readdata_left(23 downto 8), --       data_in.export
-			led_out_export       => LEDR                        --       led_out.export
+			clk_clk                        => CLOCK_50,                        --                     clk.clk
+			reset_reset_n                  => reset_n,                  --                   reset.reset_n
+			data_in_export                 => readdata_left(23 downto 8),
+			data_out_export                => write_data,
+			key_external_connection_export => KEY, -- key_external_connection.export
+			clk_sdram_clk                  => DRAM_CLK,                  --               clk_sdram.clk
+			--pll_locked_export              => CONNECTED_TO_pll_locked_export,              --              pll_locked.export
+			sdram_wire_addr                => DRAM_ADDR,                --              sdram_wire.addr
+			sdram_wire_ba                  => DRAM_BA,                  --                        .ba
+			sdram_wire_cas_n               => DRAM_CAS_N,               --                        .cas_n
+			sdram_wire_cke                 => DRAM_CKE,                 --                        .cke
+			sdram_wire_cs_n                => DRAM_cs_n,                --                        .cs_n
+			sdram_wire_dq                  => DRAM_DQ,                  --                        .dq
+			sdram_wire_dqm                 => SDRAM_DQM,                 --                        .dqm
+			sdram_wire_ras_n               => DRAM_RAS_N,               --                        .ras_n
+			sdram_wire_we_n                => DRAM_WE_N,  
+			sync_in_export						 => write_s,												--                        .we_n
+			play_btn_in_export             => KEY(1),             --             play_btn_in.export
+			record_btn_in_export           => KEY(2)            --           record_btn_in.export
 		);
   
   my_clock_gen: clock_generator 
@@ -226,4 +206,7 @@ begin
       readdata_right    => readdata_right,
       AUD_DACDAT        => AUD_DACDAT
     );
+    
+    write_data_24 <= write_data & "00000000";
+    LEDR <= "1010101010";
 end beh;

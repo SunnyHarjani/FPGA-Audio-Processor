@@ -1,7 +1,3 @@
-# Dr. Kaputa
-# Quartus II compile script for DE1-SoC board
-
-# 1] name your project here
 set project_name "audio_processor"
 
 file delete -force project
@@ -15,7 +11,6 @@ set_global_assignment -name DEVICE 5CSEMA5F31C6
 set_global_assignment -name TOP_LEVEL_ENTITY top
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY ../output_files
 
-# 2] include your relative path files here
 set_global_assignment -name QIP_FILE ../../src/rom_data/rom_data.qip
 set_global_assignment -name QIP_FILE ../../src/rom_instructions/rom_instructions.qip
 set_global_assignment -name VERILOG_FILE ../../src/audio_ip/Altera_UP_Audio_Bit_Counter.v
